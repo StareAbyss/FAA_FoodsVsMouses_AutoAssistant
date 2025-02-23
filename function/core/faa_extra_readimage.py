@@ -33,7 +33,7 @@ def producer(time_num, handle, read_queue, is_log, is_gpu):
             # 暂停一段时间
             time.sleep(time_num)
     except cv2.error or AttributeError:
-        CUS_LOGGER.error("出现严重错误，请把当前FAA文件目录迁移至非中文路径下，否则程序不会正常运行！")
+        CUS_LOGGER.critical("出现严重错误，请把当前FAA文件目录迁移至非中文路径下，否则程序不会正常运行！")
 
 
 def read_and_get_return_information(faa, is_log, is_gpu, interval):

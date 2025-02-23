@@ -4,7 +4,7 @@ import sys
 from PyQt6 import uic, QtGui, QtCore, QtWidgets
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QListWidgetItem, QListWidget
+from PyQt6.QtWidgets import QListWidgetItem, QListWidget, QSystemTrayIcon, QMenu
 
 from function.common.get_system_dpi import get_system_dpi
 from function.globals import EXTRA
@@ -12,10 +12,11 @@ from function.globals.get_paths import PATHS
 from function.globals.thread_action_queue import T_ACTION_QUEUE_TIMER
 # noinspection PyUnresolvedReferences
 from function.qrc import test_rc, theme_rc, GTRONICK_rc
+# 虽然ide显示上面这行没用，但实际是用来加载相关资源的，不可删除,我用奇妙的方式强制加载了
 from function.widget.CusIcon import create_qt_icon
 from function.widget.SearchableComboBox import SearchableComboBox
 
-# 虽然ide显示上面这行没用，但实际是用来加载相关资源的，不可删除,我用奇妙的方式强制加载了
+
 
 ZOOM_RATE = None
 
@@ -56,6 +57,13 @@ class QMainWindowLoadUI(QtWidgets.QMainWindow):
         self.adv_opt_synchronizing = None
         self.adv_opt_sections:list = []
         self.init_advanced_settings_connection()
+
+        # 添加系统托盘功能
+        self.tray_icon = None
+        self.init_tray_icon()
+
+        # 绑定最小化按钮
+        self.Button_Minimized.clicked.connect(self.minimize_to_tray)
 
     def get_theme(self):
         if self.palette().color(QtGui.QPalette.ColorRole.Window).lightness() < 128:
@@ -249,12 +257,52 @@ class QMainWindowLoadUI(QtWidgets.QMainWindow):
         next_month_button.setIcon(next_icon)
 
     """重写拖动窗口"""
+    def init_tray_icon(self):
+        # 创建系统托盘图标
+        self.tray_icon = QSystemTrayIcon(self)
+        self.tray_icon.setIcon(QIcon(PATHS["logo"] + "\\圆角-FetDeathWing-256x-AllSize.ico"))
+        self.tray_icon.setToolTip("FAA - 正在后台运行")
+
+        # 创建托盘菜单
+        tray_menu = QMenu()
+        restore_action = tray_menu.addAction("一键启动")
+        quit_action = tray_menu.addAction("退出程序")
+
+        # 连接菜单动作
+        restore_action.triggered.connect(self.todo_click_btn)
+        quit_action.triggered.connect(self.close)
+
+        # 设置托盘菜单
+        self.tray_icon.setContextMenu(tray_menu)
+
+        # 双击托盘图标恢复
+        self.tray_icon.activated.connect(self.tray_icon_activated)
+        self.tray_icon.show()
+
+    def minimize_to_tray(self):
+        # 隐藏主窗口
+        self.hide()
+        self.tray_icon.showMessage(
+            "FAA 已最小化",
+            "程序正在后台运行",
+            QSystemTrayIcon.MessageIcon.Information,
+            2000
+        )
+
+    def restore_from_tray(self):
+        # 恢复窗口显示
+        self.show()
+        self.setWindowState(Qt.WindowState.WindowActive)
+
+    def tray_icon_activated(self, reason):
+        if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
+            self.restore_from_tray()
 
     def closeEvent(self, event):
         """
         对MainWindow的函数closeEvent进行重构, 退出软件时弹窗提醒 并且结束所有进程(和内部的线程)
         """
-
+        self.tray_icon.hide()
         event.accept()
         # 用过sys.exit(0)和sys.exit(app.exec())，但没起效果
         os._exit(0)
